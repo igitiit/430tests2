@@ -1,6 +1,4 @@
 name: Django CI
-
-on:
   push:
     branches: [main]
   pull_request:
