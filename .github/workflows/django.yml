@@ -42,5 +42,5 @@ jobs:
           python3 blog_project/manage.py check
 
       - name: Run Tests
-         run: |
+      run: |
            python3 blog_project/manage.py test blog
