@@ -39,8 +39,8 @@ jobs:
 
       - name: Run Django checks
         run: |
-          python3 manage.py check
+          python3 blog_project/manage.py check
 
       - name: Run Tests
         run: |
-          python3 manage.py test
+          python3 blog_project/manage.py test
