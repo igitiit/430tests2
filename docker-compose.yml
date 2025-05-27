@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    volumes:
+      - ./:/app
+    working_dir: /app/blog_project
+    command: python manage.py runserver 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/
+      - DJANGO_SETTINGS_MODULE=blog_project.settings
+      - DB_HOST=coursera-mysql-instance.csbkk0sq0j1o.us-east-1.rds.amazonaws.com
+      - DB_NAME=blog_db
+      - DB_USER=coursera
+      - DB_PASSWORD=coursera
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - blog_network
+
+  db:
+    image: mysql:8.0
+    environment:
+      - MYSQL_ROOT_PASSWORD=jp
+      - MYSQL_DATABASE=blog_db
+    volumes:
+      - blog_db_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      interval: 5s
+      retries: 10
+    ports:
+      - "3307:3306"
+    networks:
+      - blog_network
+
+volumes:
+  blog_db_data:
+
+networks:
+  blog_network:
