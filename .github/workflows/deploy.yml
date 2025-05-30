@@ -56,16 +56,45 @@ jobs:
         run: |
           echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
           ssh -o StrictHostKeyChecking=no -i private_key ${USER}@${HOST} "
+            # Check and install AWS CLI if needed
+            if ! command -v aws &> /dev/null; then
+              echo 'Installing AWS CLI...'
+              curl 'https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip' -o 'awscliv2.zip'
+              sudo apt-get update && sudo apt-get install -y unzip
+              unzip awscliv2.zip
+              sudo ./aws/install
+              rm -rf aws awscliv2.zip
+            fi
+            
+            # Configure AWS credentials
+            export AWS_ACCESS_KEY_ID='$AWS_ACCESS_KEY_ID'
+            export AWS_SECRET_ACCESS_KEY='$AWS_SECRET_ACCESS_KEY'
+            export AWS_DEFAULT_REGION='us-east-1'
+            
+            # Verify AWS credentials and ECR access
+            aws sts get-caller-identity
+            
+            # Full ECR login command
             aws ecr get-login-password --region us-east-1 | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
+            
+            # Check available disk space
+            df -h /
+            
             if [ \"\$(docker ps -aq -f name=blog_web)\" ]; then
               echo 'Stopping and removing existing container ''blog_web''...'
               sudo docker stop blog_web
               sudo docker rm blog_web
             fi
+            
             sudo docker pull $ECR_REGISTRY/blog_project-web:$IMAGE_TAG
-            sudo docker run --rm -d --name blog_web -p 8000:8000 \
+            sudo docker run --rm -d --name blog_web --network host \
               -e AWS_ACCESS_KEY_ID='$AWS_ACCESS_KEY_ID' \
               -e AWS_SECRET_ACCESS_KEY='$AWS_SECRET_ACCESS_KEY' \
               $ECR_REGISTRY/blog_project-web:$IMAGE_TAG
+            
+            # Verify container is running and port is accessible
+            sudo docker ps | grep blog_web
+            netstat -tulpn | grep 8000
+            
             sudo docker exec blog_web python manage.py migrate
           "
