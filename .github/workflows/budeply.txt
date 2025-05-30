@@ -8,6 +8,7 @@ on:
 jobs:
   deploy:		
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v2
 
@@ -56,7 +57,7 @@ jobs:
         run: |
           echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
           ssh -o StrictHostKeyChecking=no -i private_key ${USER}@${HOST} "
-            source /home/ubuntu/.aws-cli-venv/bin/activate
+            sudo apt-get update && sudo apt-get install -y awscli
             aws ecr get-login-password --region us-east-1 | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
             if [ \"\$(docker ps -aq -f name=blog_web)\" ]; then
               echo 'Stopping and removing existing container ''blog_web''...'
