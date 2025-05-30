@@ -9,6 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    working-directory: ./blog_project
 
     services:
       mysql:
@@ -16,6 +17,8 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: jp
           MYSQL_DATABASE: blog_db
+          MYSQL_USER: coursera
+          MYSQL_PASSWORD: jp
         ports:
           - 3306:3306
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
@@ -52,6 +55,8 @@ jobs:
         DJANGO_SETTINGS_MODULE: blog_project.settings
         DATABASE_HOST: 127.0.0.1
         DATABASE_PORT: 3306
+        MYSQL_USER: coursera
+        MYSQL_PASSWORD: jp
         MYSQL_ROOT_PASSWORD: jp
         MYSQL_DATABASE: blog_db
       run: |
