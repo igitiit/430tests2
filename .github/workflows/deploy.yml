@@ -42,7 +42,7 @@ jobs:
       env:
         PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
         HOST: ${{ secrets.EC2_HOST }}
-        USER: ec2-user
+        USER: ubuntu
       run: |
         echo "$PRIVATE_KEY" > private_key.pem
         chmod 400 private_key.pem
@@ -82,7 +82,7 @@ jobs:
       env:
         PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
         HOST: ${{ secrets.EC2_HOST }}
-        USER: ec2-user
+        USER: ubuntu
       run: |
         ssh -i private_key.pem $USER@$HOST 'docker exec $(docker ps -q) python manage.py test'
 
@@ -90,6 +90,6 @@ jobs:
       env:
         PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
         HOST: ${{ secrets.EC2_HOST }}
-        USER: ec2-user
+        USER: ubuntu
       run: |
         ssh -i private_key.pem $USER@$HOST 'docker system prune -af --volumes'
