@@ -10,8 +10,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v2
@@ -19,8 +17,6 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-1
-        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-        audience: sts.amazonaws.com
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -33,11 +29,17 @@ jobs:
         pip install -r requirements.txt
         pip install awscli
 
-    - name: Build and Deploy
+    - name: Deploy to EC2
       env:
         DJANGO_SETTINGS_MODULE: blog_project.settings
+        SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
       run: |
-        # Add your deployment commands here
-        # Example: AWS CLI commands for deployment
-        aws s3 sync staticfiles/ s3://${{ secrets.AWS_S3_BUCKET }}/static/
-        # Add additional deployment steps as needed
+        # Ensure SSH key has correct permissions
+        echo "$SSH_PRIVATE_KEY" > deploy_key.pem
+        chmod 600 deploy_key.pem
+        
+        # Example EC2 deployment steps (customize as needed)
+        # ssh -i deploy_key.pem -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} "cd /path/to/app && git pull"
+        
+        # Clean up
+        rm deploy_key.pem
