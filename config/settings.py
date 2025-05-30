@@ -1,5 +1,16 @@
 import os
+import socket
 from pathlib import Path
+
+# Get container's private IP
+def get_private_ip():
+    try:
+        # Get all network interfaces
+        hostname = socket.gethostname()
+        private_ip = socket.gethostbyname(hostname)
+        return private_ip
+    except:
+        return 'localhost'
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -49,6 +60,10 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'blog_project.wsgi.application'
 
+# Configure database with private IP
+PRIVATE_IP = get_private_ip()
+print(f"Using private IP: {PRIVATE_IP}")
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
@@ -62,6 +77,7 @@ DATABASES = {
             'connect_timeout': 30,
             'ssl': {'ssl-mode': 'DISABLED'},
             'charset': 'utf8mb4',
+            'bind_address': PRIVATE_IP,
         }
     }
 }
