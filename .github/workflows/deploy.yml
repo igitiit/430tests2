@@ -8,7 +8,7 @@ on:
 env:
   DB_NAME: blog_db
   DB_USER: coursera
-  DB_PASSWORD: jp
+  DB_PASSWORD: coursera
   DB_HOST: coursera-mysql-instance.csbkk0sq0j1o.us-east-1.rds.amazonaws.com
 
 jobs:
@@ -35,7 +35,7 @@ jobs:
         ECR_REPOSITORY: blog-app
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker build --platform linux/amd64 -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
     - name: Deploy to EC2
