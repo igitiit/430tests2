@@ -1,31 +1,42 @@
 #!/bin/bash
 
-# Check if we're in a git repository
-if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-    echo "Error: Not in a git repository"
+# Store the absolute path of the script
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+
+# Ensure valid execution path
+if [[ ! "$PWD" == "$script_dir"* ]]; then
+    echo "Error: Please run this script within $script_dir or its subdirectories."
     exit 1
 fi
 
-echo "Working directory: $(pwd)"
+# Move to the git repository root
+cd "$script_dir"
 
-# Check if there are any changes (including untracked files)
-if [[ -z $(git status --porcelain) ]]; then
-    echo "No changes to commit."
-else
-    # Add all changes to the staging area
-    git add -A
-
-    # Prompt the user for a commit message
-    echo "Enter the commit message:"
-    read commitMessage
-
-    # Commit the changes
-    git commit -m "$commitMessage"
-
-    # Push the changes to the main branch
-    if git push origin main; then
-        echo "Push successful."
-    else
-        echo "Push failed."
-    fi
+# Check if it's a valid git repository
+if [ ! -d ".git" ]; then
+    echo "Error: Not a valid git repository. Missing .git directory."
+    exit 1
 fi
+
+# Check for changes
+if git status --porcelain | grep -q '^'; then
+    echo "Changes detected. Proceeding with commit..."
+else
+    echo "No changes to commit. Exiting."
+    exit 0
+fi
+
+# Add all changes
+git add --all
+
+# Prompt for commit message
+echo "Enter commit message:"
+read commit_message
+
+# Commit changes
+git commit -m "$commit_message"
+
+# Push to main branch
+git push origin main
+
+echo "Git operations completed successfully!"

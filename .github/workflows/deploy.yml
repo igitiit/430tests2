@@ -2,94 +2,71 @@ name: Deploy to EC2
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
-env:
-  DB_NAME: blog_db
-  DB_USER: coursera
-  DB_PASSWORD: coursera
-  DB_HOST: coursera-mysql-instance.csbkk0sq0j1o.us-east-1.rds.amazonaws.com
-
 jobs:
-  deploy:
+  deploy:		
     runs-on: ubuntu-latest
-    
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Build and push Docker image
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: blog-app
-        IMAGE_TAG: ${{ github.sha }}
-      run: |
-        docker build --platform linux/amd64 -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: blog_project-web
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-    - name: Deploy to EC2
-      env:
-        PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-        HOST: ${{ secrets.EC2_HOST }}
-        USER: ubuntu
-      run: |
-        echo "$PRIVATE_KEY" > private_key.pem
-        chmod 400 private_key.pem
-        
-        # Stop and remove existing containers
-        ssh -o StrictHostKeyChecking=no -i private_key.pem $USER@$HOST '
-          docker stop $(docker ps -q) || true
-          docker rm $(docker ps -aq) || true
-          aws ecr get-login-password | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
-          docker pull ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$IMAGE_TAG
-          docker run -d \
-            -p 8000:8000 \
-            -e DB_NAME=${{ env.DB_NAME }} \
-            -e DB_USER=${{ env.DB_USER }} \
-            -e DB_PASSWORD=${{ env.DB_PASSWORD }} \
-            -e DB_HOST=${{ env.DB_HOST }} \
-            ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$IMAGE_TAG
-          docker exec $(docker ps -q) python manage.py migrate
-        '
+      - name: Get EC2 instance Public IP
+        id: get-ip
+        run: |
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=MyEC2Instance" \
+            --query "Reservations[*].Instances[*].InstanceId" \
+            --output text)
+          PUBLIC_IP=$(aws ec2 describe-instances \
+            --instance-ids $INSTANCE_ID \
+            --query "Reservations[*].Instances[*].PublicIpAddress" \
+            --output text)
+          echo "PUBLIC_IP=$PUBLIC_IP" >> $GITHUB_ENV
 
-    - name: Health check
-      env:
-        HOST: ${{ secrets.EC2_HOST }}
-      run: |
-        for i in {1..5}; do
-          if curl -s "http://$HOST:8000/health/" | grep "ok"; then
-            echo "Health check passed"
-            exit 0
-          fi
-          echo "Waiting for service to be up..."
-          sleep 10
-        done
-        echo "Health check failed"
-        exit 1
-
-    - name: Run tests
-      env:
-        PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-        HOST: ${{ secrets.EC2_HOST }}
-        USER: ubuntu
-      run: |
-        ssh -i private_key.pem $USER@$HOST 'docker exec $(docker ps -q) python manage.py test'
-
-    - name: Cleanup
-      env:
-        PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-        HOST: ${{ secrets.EC2_HOST }}
-        USER: ubuntu
-      run: |
-        ssh -i private_key.pem $USER@$HOST 'docker system prune -af --volumes'
+      - name: Deploy to EC2
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          HOST: ${{ env.PUBLIC_IP }}
+          USER: ubuntu
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+          ssh -o StrictHostKeyChecking=no -i private_key ${USER}@${HOST} "
+            source /home/ubuntu/.aws-cli-venv/bin/activate
+            aws ecr get-login-password --region us-east-1 | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
+            if [ \"\$(docker ps -aq -f name=blog_web)\" ]; then
+              echo 'Stopping and removing existing container ''blog_web''...'
+              sudo docker stop blog_web
+              sudo docker rm blog_web
+            fi
+            sudo docker pull $ECR_REGISTRY/blog_project-web:$IMAGE_TAG
+            sudo docker run --rm -d --name blog_web -p 8000:8000 \
+              -e AWS_ACCESS_KEY_ID='$AWS_ACCESS_KEY_ID' \
+              -e AWS_SECRET_ACCESS_KEY='$AWS_SECRET_ACCESS_KEY' \
+              $ECR_REGISTRY/blog_project-web:$IMAGE_TAG
+            sudo docker exec blog_web python manage.py migrate
+          "

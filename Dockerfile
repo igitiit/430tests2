@@ -16,8 +16,5 @@ WORKDIR /app/blog_project
 # Copy entire project
 COPY . /app/
 
-# Copy our custom settings file
-COPY config/settings.py /app/blog_project/blog_project/settings.py
-
 # Run the application
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "blog_project.wsgi:application"]
