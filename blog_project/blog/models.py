@@ -9,4 +9,4 @@ class Post(models.Model):
     image = models.ImageField(upload_to='blog_images/', blank=True, null=True)
 
     class Meta:
-        db_table = 'blog_posts_v2'  # Changed table name
+        db_table = 'blog_post'  # Explicitly set to blog_post
