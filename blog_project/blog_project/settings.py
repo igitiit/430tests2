@@ -147,3 +147,4 @@ print("FORCING S3 STORAGE BACKEND")
 from storages.backends.s3boto3 import S3Boto3Storage
 sys.modules['django.core.files.storage'].__dict__['default_storage'] = S3Boto3Storage()
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+ 
