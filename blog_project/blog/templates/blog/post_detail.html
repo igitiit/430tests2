@@ -1,0 +1,14 @@
+<!-- blog/templates/blog/post_detail.html -->
+
+{% block content %}
+  <h2>{{ post.title }}</h2>
+  <p><strong>Author:</strong> {{ post.author }}</p>
+  <p><strong>Created on:</strong> {{ post.created_date }}</p>
+  <div>
+    <p>{{ post.content }}</p>
+    {% if post.image %}
+      <img src="{{ post.image.url }}" alt="{{ post.title }}">
+    {% endif %}
+  </div>
+  <a href="{% url 'create_post' %}">Create New Post</a>
+{% endblock %}
