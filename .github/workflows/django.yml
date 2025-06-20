@@ -14,7 +14,7 @@ jobs:
       mysql:
         image: mysql:8.0
         env:
-          MYSQL_ROOT_PASSWORD: your_mysql_password
+          MYSQL_ROOT_PASSWORD: jp
           MYSQL_DATABASE: blog_db
         options: >-
           --health-cmd="mysqladmin ping"
