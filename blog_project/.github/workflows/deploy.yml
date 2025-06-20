@@ -19,8 +19,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-secret-bucket_name: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
-        aws-region: us-east-1
+        aws-region: us-east-1  # ✅ REQUIRED
 
     - name: Login to Amazon ECR
       id: login-ecr
@@ -31,6 +30,8 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: blog-app
         IMAGE_TAG: ${{ github.sha }}
+        # ADD AWS ENV VARS HERE ⬇️
+        AWS_STORAGE_BUCKET_NAME: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
       run: |
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
@@ -42,12 +43,12 @@ jobs:
       env:
         SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         EC2_HOST: ${{ secrets.EC2_HOST }}
+        # PASS BUCKET NAME TO CONTAINER ⬇️
+        AWS_STORAGE_BUCKET_NAME: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
       run: |
-        # Setup SSH key
         echo "$SSH_PRIVATE_KEY" > deploy_key.pem
         chmod 600 deploy_key.pem
 
-        # SSH into EC2 and update container
         ssh -i deploy_key.pem -o StrictHostKeyChecking=no ubuntu@$EC2_HOST "\
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }} && \
           docker pull ${{ env.IMAGE }} && \
@@ -60,7 +61,7 @@ jobs:
             -e MYSQL_PASSWORD=jp \
             -e MYSQL_DATABASE=blog_db \
             -e MYSQL_HOST=localhost \
+            -e AWS_STORAGE_BUCKET_NAME=$AWS_STORAGE_BUCKET_NAME \  # ✅ CRITICAL ADDITION
             ${{ env.IMAGE }}"
 
-        # Clean up
         rm deploy_key.pem
