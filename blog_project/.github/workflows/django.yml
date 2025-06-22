@@ -1,4 +1,5 @@
 name: Django CI
+ci: false
 
 on:
   push:
