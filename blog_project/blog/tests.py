@@ -9,7 +9,7 @@ class PostModelTest(TestCase):
         Post.objects.create(title="Test Post", content="This is a test.")
 
     def test_post_content(self):
-        post = Post.objects.get(id=1)
+        post = Post.objects.all().first()
         expected_object_name = f'{post.title}'
         self.assertEqual(expected_object_name, 'Test Post')
 
