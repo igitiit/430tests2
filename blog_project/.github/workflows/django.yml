@@ -1,7 +1,3 @@
-    defaults:
-      run:
-        working-directory: blog_project
-
 name: Django CI
 
 on:
@@ -13,6 +9,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: blog_project
 
     services:
       mysql:
@@ -48,8 +47,9 @@ jobs:
     
     - name: Install Dependencies
       run: |
+        source myenv/bin/activate
         python -m pip install --upgrade pip
-        source myenv/bin/activate && pip install -r requirements.txt
+        pip install -r requirements.txt
     
     - name: Run Django Tests
       env:
@@ -65,4 +65,5 @@ jobs:
         AWS_STORAGE_BUCKET_NAME: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
       run: |
         source myenv/bin/activate
-        source myenv/bin/activate && python manage.py test
+        python manage.py check
+        python manage.py test
