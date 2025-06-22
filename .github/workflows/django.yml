@@ -16,7 +16,7 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: jp
           MYSQL_DATABASE: blog_db
-          MYSQL_USER: jp
+          MYSQL_USER: root
           MYSQL_PASSWORD: jp
         ports:
           - 3306:3306
@@ -55,7 +55,7 @@ jobs:
         DJANGO_SETTINGS_MODULE: blog_project.settings
         DATABASE_HOST: 127.0.0.1
         DATABASE_PORT: 3306
-        MYSQL_USER: jp
+        MYSQL_USER: root
         MYSQL_PASSWORD: jp
         MYSQL_ROOT_PASSWORD: jp
         MYSQL_DATABASE: blog_db
