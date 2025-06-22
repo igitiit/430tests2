@@ -82,7 +82,8 @@ DATABASES = {
         'USER': 'coursera',
         'PASSWORD': 'coursera',
         'HOST': 'coursera-mysql-instance.csbkk0sq0j1o.us-east-1.rds.amazonaws.com',
-        'PORT': '3307' if os.getenv('CI') else '3306',
+	'PORT': 3306
+        #'PORT': '3307' if os.getenv('CI') else '3306',
     }
 }
 
