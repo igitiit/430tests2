@@ -9,9 +9,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: blog_project
 
     services:
       mysql:
@@ -42,11 +39,13 @@ jobs:
     
     - name: Create Virtual Environment
       run: |
+        cd blog_project
         python -m venv myenv
         source myenv/bin/activate
     
     - name: Install Dependencies
       run: |
+        cd blog_project
         source myenv/bin/activate
         python -m pip install --upgrade pip
         pip install -r requirements.txt
@@ -64,6 +63,7 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         AWS_STORAGE_BUCKET_NAME: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
       run: |
+        cd blog_project
         source myenv/bin/activate
         python manage.py check
         python manage.py test
