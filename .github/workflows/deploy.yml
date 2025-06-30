@@ -1,62 +1,95 @@
-name: Django CI
+name: Deploy to EC2
 
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  DB_NAME: blog_db
+  DB_USER: coursera
+  DB_PASSWORD: jp
+  DB_HOST: coursera-mysql-instance.csbkk0sq0j1o.us-east-1.rds.amazonaws.com
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
-
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: jp
-          MYSQL_DATABASE: blog_db
-        ports:
-          - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
-
+    
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v2
 
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v2
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-1
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-    
-    - name: Create Virtual Environment
-      run: |
-        cd blog_project
-        python -m venv myenv
-        source myenv/bin/activate
-    
-    - name: Install Dependencies
-      run: |
-        cd blog_project
-        source myenv/bin/activate
-        python -m pip install --upgrade pip
-        pip install -r ../requirements.txt
-    
-    - name: Run Django Tests
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build and push Docker image
       env:
-        DJANGO_SETTINGS_MODULE: blog_project.settings
-        DATABASE_HOST: coursera-mysql-instance.csbkk0sq0j1o.us-east-1.rds.amazonaws.com
-        DATABASE_PORT: 3306
-        MYSQL_USER: coursera
-        MYSQL_PASSWORD: coursera
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: blog-app
+        IMAGE_TAG: ${{ github.sha }}
       run: |
-        cd blog_project
-        source myenv/bin/activate
-        python manage.py check
-        python manage.py test
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+    - name: Deploy to EC2
+      env:
+        PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+        HOST: ${{ secrets.EC2_HOST }}
+        USER: ec2-user
+      run: |
+        echo "$PRIVATE_KEY" > private_key.pem
+        chmod 400 private_key.pem
+        
+        # Stop and remove existing containers
+        ssh -o StrictHostKeyChecking=no -i private_key.pem $USER@$HOST '
+          docker stop $(docker ps -q) || true
+          docker rm $(docker ps -aq) || true
+          aws ecr get-login-password | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
+          docker pull ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$IMAGE_TAG
+          docker run -d \
+            -p 8000:8000 \
+            -e DB_NAME=${{ env.DB_NAME }} \
+            -e DB_USER=${{ env.DB_USER }} \
+            -e DB_PASSWORD=${{ env.DB_PASSWORD }} \
+            -e DB_HOST=${{ env.DB_HOST }} \
+            ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$IMAGE_TAG
+          docker exec $(docker ps -q) python manage.py migrate
+        '
+
+    - name: Health check
+      env:
+        HOST: ${{ secrets.EC2_HOST }}
+      run: |
+        for i in {1..5}; do
+          if curl -s "http://$HOST:8000/health/" | grep "ok"; then
+            echo "Health check passed"
+            exit 0
+          fi
+          echo "Waiting for service to be up..."
+          sleep 10
+        done
+        echo "Health check failed"
+        exit 1
+
+    - name: Run tests
+      env:
+        PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+        HOST: ${{ secrets.EC2_HOST }}
+        USER: ec2-user
+      run: |
+        ssh -i private_key.pem $USER@$HOST 'docker exec $(docker ps -q) python manage.py test'
+
+    - name: Cleanup
+      env:
+        PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+        HOST: ${{ secrets.EC2_HOST }}
+        USER: ec2-user
+      run: |
+        ssh -i private_key.pem $USER@$HOST 'docker system prune -af --volumes'
