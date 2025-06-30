@@ -2,66 +2,46 @@ name: Django CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
 
     services:
       mysql:
         image: mysql:8.0
         env:
-          MYSQL_ROOT_PASSWORD: jp
+          MYSQL_ROOT_PASSWORD: your_mysql_password
           MYSQL_DATABASE: blog_db
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
         ports:
-          - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+          - 3307:3306
 
     steps:
-    - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.12'
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-    
-    - name: Create Virtual Environment
-      run: |
-        cd blog_project
-        python -m venv myenv
-        source myenv/bin/activate
-    
-    - name: Install Dependencies
-      run: |
-        cd blog_project
-        source myenv/bin/activate
-        python -m pip install --upgrade pip
-        pip install -r ../requirements.txt
-    
-    - name: Run Django Tests
-      env:
-        DJANGO_SETTINGS_MODULE: blog_project.settings
-        DATABASE_HOST: 127.0.0.1
-        DATABASE_PORT: 3306
-        MYSQL_USER: root
-        MYSQL_PASSWORD: jp
-        MYSQL_ROOT_PASSWORD: jp
-        MYSQL_DATABASE: blog_db
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_STORAGE_BUCKET_NAME: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
-      run: |
-        cd blog_project
-        source myenv/bin/activate
-        python manage.py check
-        python manage.py test
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run Django checks
+        run: |
+          python3 blog_project/manage.py check
+
+      - name: Run Tests
+        run: |
+          python3 blog_project/manage.py test blog
+
