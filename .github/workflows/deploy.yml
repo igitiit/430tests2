@@ -28,7 +28,7 @@ jobs:
     - name: Build, tag, and push image to Amazon ECR
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: blog-app
+        ECR_REPOSITORY: blog_project-web
         IMAGE_TAG: ${{ github.sha }}
         # ✅ Add bucket name as environment variable
         AWS_STORAGE_BUCKET_NAME: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
