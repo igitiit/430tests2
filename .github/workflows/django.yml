@@ -38,11 +38,6 @@ jobs:
           #python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      #- name: Run Django checks
-        #run: |
-          #python3 blog_project/manage.py check
-
-
       # This creates a .env file with your secrets
       - name: Create .env file
         run: |
@@ -53,6 +48,10 @@ jobs:
           echo "DB_USER=root" >> .env
           echo "DB_PASSWORD=jp" >> .env
           echo "DB_HOST=127.0.0.1" >> .env
+
+      - name: Run Django checks
+        run: |
+          python3 blog_project/manage.py check
 
       - name: Run Tests
         env:
